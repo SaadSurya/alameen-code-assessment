@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  redis-master:
+    image: redis
+    container_name: redis-master
+    hostname: redis-master
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--bind", "0.0.0.0", "--requirepass", "masterpassword", "--appendonly", "yes"]
+    networks:
+      - redis-network
+
+  redis-slave-1:
+    image: redis
+    container_name: redis-slave-1
+    hostname: redis-slave-1
+    ports:
+      - "6380:6379"
+    command: [
+      "redis-server",
+      "--bind", "0.0.0.0",
+      "--requirepass", "masterpassword",
+      "--slaveof", "redis-master", "6379",
+      "--masterauth", "masterpassword",
+      "--appendonly", "yes"
+    ]
+    depends_on:
+      - redis-master
+    networks:
+      - redis-network
+
+  redis-slave-2:
+    image: redis
+    container_name: redis-slave-2
+    hostname: redis-slave-2
+    ports:
+      - "6381:6379"
+    command: [
+      "redis-server",
+      "--bind", "0.0.0.0",
+      "--requirepass", "masterpassword",
+      "--slaveof", "redis-master", "6379",
+      "--masterauth", "masterpassword",
+      "--appendonly", "yes"
+    ]
+    depends_on:
+      - redis-master
+    networks:
+      - redis-network
+
+  redis-sentinel:
+    image: redis
+    container_name: redis-sentinel
+    hostname: redis-sentinel
+    ports:
+      - "26379:26379"
+    volumes:
+      - ./sentinel.conf:/etc/redis/sentinel.conf
+    command: ["redis-server", "/etc/redis/sentinel.conf", "--sentinel", "--bind", "0.0.0.0"]
+    depends_on:
+      - redis-master
+      - redis-slave-1
+      - redis-slave-2
+    networks:
+      - redis-network
+networks:
+  redis-network:
+    name: redis-network
+    external: true
+    driver: bridge
